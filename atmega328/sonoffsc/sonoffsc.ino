@@ -49,7 +49,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 #define DHT_EXPIRES             2000
 
-#define RGB_PIN			        12
+#define RGB_PIN                 11
 #define RGB_COUNT               18
 #define RGB_TIMEOUT             0
 #define RGB_SPEED               255
