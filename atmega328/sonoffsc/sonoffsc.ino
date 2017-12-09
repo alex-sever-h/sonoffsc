@@ -250,10 +250,10 @@ void loadTempAndHum() {
     double h = dht.readHumidity();
     double t = dht.readTemperature();
 
-    t -= 1.5f;
 
     // Check values
     if (isnan(h) || isnan(t)) return;
+    t -= 1.5f;
     temperature = t;
     humidity = h;
 
