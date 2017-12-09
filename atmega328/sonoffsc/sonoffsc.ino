@@ -50,7 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DHT_EXPIRES             60000
 
 #define RGB_PIN			        12
-#define RGB_COUNT               24
+#define RGB_COUNT               18
 #define RGB_TIMEOUT             0
 #define RGB_SPEED               255
 #define RGB_BRIGHTNESS          255
