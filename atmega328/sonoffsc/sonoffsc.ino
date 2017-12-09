@@ -234,18 +234,7 @@ float getDust() {
 }
 
 void getDustDefer(bool push = false) {
-    if (fanoff > 0) {
-        fanStatus(true);
-        dustPush = push;
-        fanTicker.setInterval(fanoff);
-        fanTicker.setCallback([](){
-            fanTicker.stop();
-            dust = getDust();
-            fanStatus(false);
-            if (dustPush) link.send_P(at_dust, dust, false);
-        });
-        fanTicker.start();
-    } else {
+    {
         dust = getDust();
         if (push) link.send_P(at_dust, dust, false);
     }
