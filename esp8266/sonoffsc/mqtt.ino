@@ -93,6 +93,18 @@ void mqttSendRaw(const char * topic, const char * message) {
     }
 }
 
+void mqttSendByteStream(const char * topic, const char * message, size_t length) {
+    if (_mqtt.connected()) {
+        #if MQTT_USE_ASYNC
+      unsigned int packetId = _mqtt.publish(topic, MQTT_QOS, MQTT_RETAIN, message, length);
+            DEBUG_MSG_P(PSTR("[MQTT] Sending %s => %s (PID %d)\n"), topic, message, packetId);
+        #else
+            _mqtt.publish(topic, message, MQTT_RETAIN);
+            DEBUG_MSG_P(PSTR("[MQTT] Sending %s => %s\n"), topic, message);
+        #endif
+    }
+}
+
 String getTopic(const char * topic, bool set) {
     String output = _mqtt_topic + String(topic);
     if (set) output += _mqtt_setter;

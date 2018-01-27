@@ -23,7 +23,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <DHT.h>
 #include <SerialLink.h>
 #include <Ticker.h>
-
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
@@ -307,10 +306,13 @@ bool getMovement() {
     return digitalRead(MW_PIN) == HIGH;
 }
 
+const char test[2][256] = {"Hello, World 0!", "Hello, World 1!"};
+
 void moveLoop(bool force = false) {
     bool value = getMovement();
     if (force || (movement != value)) {
         link.send_P(at_move, value ? 1 : 0, false);
+        link.sendByteStream("AT+WAV", test[0], strlen(test[0]), false);
     }
     movement = value;
 }

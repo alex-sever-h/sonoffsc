@@ -59,6 +59,11 @@ bool commsGet(char * key) {
     return false;
 }
 
+bool commsSetByteStream(char * key, char * payload, size_t payload_size) {
+  //printf("Received key %s size %d payload :%s:\n", key, payload_size, payload);
+  mqttSendByteStream("wav", payload, payload_size);
+}
+
 bool commsSet(char * key, long value) {
 
     char buffer[50];
@@ -157,6 +162,7 @@ void commsSetup() {
 
     link.onGet(commsGet);
     link.onSet(commsSet);
+    link.onSetByteStream(commsSetByteStream);
     link.clear();
     delay(200);
 
