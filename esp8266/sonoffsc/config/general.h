@@ -3,7 +3,7 @@
 //------------------------------------------------------------------------------
 
 #define ADMIN_PASS              "fibonacci" // Default password (WEB, OTA, WIFI)
-#define SERIAL_BAUDRATE         9600
+#define SERIAL_BAUDRATE         1000000 //9600
 #define DEVICE_NAME             APP_NAME
 #define MANUFACTURER            "ITEAD STUDIO"
 
