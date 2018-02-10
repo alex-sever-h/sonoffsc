@@ -19,45 +19,42 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-#include <WS2812FX.h>
-#include <DHT.h>
-#include <SerialLink.h>
-#include <Ticker.h>
+//#include <WS2812FX.h>
+//#include <Ticker.h>
+
+//#include "at_messages.h"
+#include "taskAudio.h"
+#include "taskDHT.h"
+#include "taskLink.h"
+#include "taskLight.h"
+#include "taskDust.h"
+
+#define SERIAL_BAUDRATE         1000000
+
+#define LDR_PIN                 A3
+
+#define SHARP_READ_PIN          A1
+#define SHARP_LED_PIN           9
+
+#define MICROPHONE_PIN          A2
+
+#if 0
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
 
-#define SERIAL_BAUDRATE         1000000
-
 #define FAN_PIN                 7
 #define FAN_OFF_DELAY           0
-
-#define LDR_PIN                 A3
-
-#define SHARP_LED_PIN           9
-#define SHARP_READ_PIN          A1
-#define SHARP_SAMPLING_TIME	    280
-#define SHARP_DELTA_TIME		40
-#define SHARP_SLEEP_TIME		9680
-
-#define DHT_PIN                 6
-#ifndef DHT_TYPE
-// Uncomment the sensor type that you have (comment the other if applicable)
-//#define DHT_TYPE                DHT11
-#define DHT_TYPE                DHT22
-#endif
-#define DHT_EXPIRES             2000
 
 #define RGB_PIN                 11
 #define RGB_COUNT               18
 #define RGB_TIMEOUT             0
 #define RGB_SPEED               255
 #define RGB_BRIGHTNESS          255
-#define RGB_COLOR               0x000000
+#define RGB_COLOR               0x0000FF
 #define RGB_EFFECT              FX_MODE_STATIC
 
 #define ADC_COUNTS              1024
-#define MICROPHONE_PIN          A2
 
 #define MW_PIN                  13
 
@@ -74,36 +71,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define MAX_SERIAL_BUFFER       20
 
-#define DEFAULT_EVERY           3
-#define DEFAULT_PUSH            0
+#define DEFAULT_EVERY           1
+#define DEFAULT_PUSH            1
 #define DEFAULT_CLAP            0
 #define DEFAULT_THRESHOLD       0
 
 #define NULL_VALUE              -999
-
-// -----------------------------------------------------------------------------
-// Keywords
-// -----------------------------------------------------------------------------
-
-const PROGMEM char at_hello[] = "AT+HELLO";
-const PROGMEM char at_push[] = "AT+PUSH";
-const PROGMEM char at_every[] = "AT+EVERY";
-const PROGMEM char at_temp[] = "AT+TEMP";
-const PROGMEM char at_hum[] = "AT+HUM";
-const PROGMEM char at_dust[] = "AT+DUST";
-const PROGMEM char at_noise[] = "AT+NOISE";
-const PROGMEM char at_light[] = "AT+LIGHT";
-const PROGMEM char at_clap[] = "AT+CLAP";
-const PROGMEM char at_code[] = "AT+CODE";
-const PROGMEM char at_thld[] = "AT+THLD";
-const PROGMEM char at_fan[] = "AT+FAN";
-const PROGMEM char at_fanoff[] = "AT+FANOFF";
-const PROGMEM char at_timeout[] = "AT+TIMEOUT";
-const PROGMEM char at_effect[] = "AT+EFFECT";
-const PROGMEM char at_color[] = "AT+COLOR";
-const PROGMEM char at_bright[] = "AT+BRIGHT";
-const PROGMEM char at_speed[] = "AT+SPEED";
-const PROGMEM char at_move[] = "AT+MOVE";
 
 // -----------------------------------------------------------------------------
 // Globals
@@ -121,13 +94,9 @@ bool rgbRunning = false;
 unsigned long rgbTimeout = RGB_TIMEOUT;
 unsigned long rgbStart = 0;
 
-SerialLink link(Serial);
-DHT dht(DHT_PIN, DHT_TYPE);
 int clapTimings[CLAP_BUFFER_SIZE];
 byte clapPointer = 0;
 
-Ticker fanTicker;
-bool dustPush = false;
 
 // If push == false the slave waits for the master to request for values
 // If push == true the slaves sends messages
@@ -142,6 +111,7 @@ bool clap = DEFAULT_CLAP;
 unsigned long every = 1000L * DEFAULT_EVERY;
 unsigned int threshold = DEFAULT_THRESHOLD;
 unsigned long fanoff = FAN_OFF_DELAY;
+
 
 float temperature = NULL_VALUE;
 int humidity = NULL_VALUE;
@@ -159,6 +129,7 @@ bool movement;
 unsigned int noise_buffer[NOISE_BUFFER_SIZE] = {0};
 unsigned int noise_buffer_pointer = 0;
 unsigned int noise_buffer_sum = 0;
+
 
 // -----------------------------------------------------------------------------
 // FAN
@@ -210,56 +181,6 @@ void rgbColor(unsigned long color) {
 // SENSORS
 // -----------------------------------------------------------------------------
 
-int getLight() {
-    return map(analogRead(LDR_PIN), 0, ADC_COUNTS, 100, 0);
-}
-
-// 0.5V ==> 100ug/m3
-float getDust() {
-
-    digitalWrite(SHARP_LED_PIN, LOW);
-	delayMicroseconds(SHARP_SAMPLING_TIME);
-
-	float reading = analogRead(SHARP_READ_PIN);
-
-	delayMicroseconds(SHARP_DELTA_TIME);
-	digitalWrite(SHARP_LED_PIN, HIGH);
-
-    // mg/m3
-	float dust = 170.0 * reading * (5.0 / 1024.0) - 100.0;
-    if (dust < 0) dust = 0;
-    return dust;
-
-}
-
-void getDustDefer(bool push = false) {
-    {
-        dust = getDust();
-        if (push) link.send_P(at_dust, dust, false);
-    }
-}
-
-void loadTempAndHum() {
-
-    // Check at most once every minute
-    static unsigned long last = 0;
-    if (millis() - last < DHT_EXPIRES) return;
-
-    // Retrieve data
-    double h = dht.readHumidity();
-    double t = dht.readTemperature();
-
-
-    // Check values
-    if (isnan(h) || isnan(t)) return;
-
-    temperature = t;
-    humidity = h;
-
-    // Only set new expiration time if good reading
-    last = millis();
-
-}
 
 float getTemperature() {
     loadTempAndHum();
@@ -306,13 +227,10 @@ bool getMovement() {
     return digitalRead(MW_PIN) == HIGH;
 }
 
-const char test[2][256] = {"Hello, World 0!", "Hello, World 1!"};
-
 void moveLoop(bool force = false) {
     bool value = getMovement();
     if (force || (movement != value)) {
         link.send_P(at_move, value ? 1 : 0, false);
-        link.sendByteStream("AT+WAV", test[0], strlen(test[0]), false);
     }
     movement = value;
 }
@@ -475,7 +393,7 @@ void noiseLoop() {
 
 // How to respond to AT+...=? requests
 bool linkGet(char * key) {
-
+#if 1
     if (strcmp_P(key, at_push) == 0) {
         link.send(key, push ? 1 : 0, false);
         return true;
@@ -573,14 +491,14 @@ bool linkGet(char * key) {
         link.send(key, ws2812fx.getBrightness(), false);
         return true;
     }
-
+#endif
     return false;
 
 }
 
 // Functions for responding to AT+...=<long> commands that set values and functions
 bool linkSet(char * key, long value) {
-
+#if 1
     if (strcmp_P(key, at_push) == 0) {
         if (0 <= value && value <= 1) {
             push = value == 1;
@@ -655,7 +573,7 @@ bool linkSet(char * key, long value) {
             return true;
         }
 	}
-
+#endif
     return false;
 
 }
@@ -666,37 +584,43 @@ void linkSetup() {
     link.onSet(linkSet);
 }
 
-// Check for incoming AT+ commands
-void linkLoop() {
-    link.handle();
-}
-
 // -----------------------------------------------------------------------------
 // MAIN
 // -----------------------------------------------------------------------------
+#endif
+
+TaskDHT tdht(6, idDHTLib::DHT22);
+TaskLink tlink;
+TaskLight tlight(LDR_PIN);
+TaskDust tdust(SHARP_READ_PIN, SHARP_LED_PIN);
+TaskAudio taudio(MICROPHONE_PIN);
 
 void setup() {
+  // Setup Serial port
+  Serial.begin(SERIAL_BAUDRATE);
 
-	// Setup Serial port
-    Serial.begin(SERIAL_BAUDRATE);
+  //  Serial.print("Start with ");
+  //  Serial.println(xPortGetFreeHeapSize());
+
+  //tlink.begin();
+  //tdht.begin();
+  tlight.begin();
+  tdust.begin();
+  taudio.begin();
+
+  //  Serial.print("NOW  with ");
+  //  Serial.println(xPortGetFreeHeapSize());
+
+#if 0
+
     link.send_P(at_hello, 1);
-
-    linkSetup();
 
 	// Setup physical pins on the ATMega328
     pinMode(FAN_PIN, OUTPUT);
-	pinMode(LDR_PIN, INPUT);
-    pinMode(DHT_PIN, INPUT);
-    pinMode(SHARP_LED_PIN, OUTPUT);
-    pinMode(SHARP_READ_PIN, INPUT);
-    pinMode(MICROPHONE_PIN, INPUT_PULLUP);
     pinMode(MW_PIN, INPUT);
 
 	// Switch FAN off
     fanStatus(false);
-
-	// Setup the DHT Thermometer/Humidity Sensor
-    dht.begin();
 
 	// Neopixel setup and start animation
     ws2812fx.init();
@@ -709,46 +633,48 @@ void setup() {
     rgbStart = millis();
     rgbRunning = true;
 
+#endif
 }
 
-void loop() {
+extern volatile int adcReady;
 
+void loop() {
+#if 0
+#endif
+  taskYIELD();
+#if 0
+  Serial.println("loop");
+  vTaskDelay(100);
+  //#if 0
     static unsigned long last = 0;
 
-    linkLoop();
 
-	// If AT+EVERY>0 then we are sending a signal every so many seconds
+    // If AT+EVERY>0 then we are sending a signal every so many seconds
     if ((every > 0) && ((millis() - last > every) || (last == 0))) {
-
         last = millis();
-
-        getDustDefer(push);
 
         temperature = getTemperature();
         if (push) link.send_P(at_temp, 10 * temperature, false);
 
-        noiseLoop();
+        //micLoop();
 
         humidity = getHumidity();
         if (push) link.send_P(at_hum, humidity, false);
 
-        noiseLoop();
+        //micLoop();
 
-        light = getLight();
-        if (push) link.send_P(at_light, light, false);
+        adcReady = 0; while(adcReady == 0); // BFH
+        aaAudio.enableAdcChannel(MICROPHONE_PIN);
 
-        noiseLoop();
-
-        noise = getNoise();
-        if (push) link.send_P(at_noise, noise, false);
-
-        moveLoop(true);
+        //micLoop();
 
     }
 
-    fanTicker.update();
-    noiseLoop();
-    moveLoop();
-    rgbLoop();
 
+    //   fanTicker.update();
+    //noiseLoop();
+    //micLoop();
+    //moveLoop();
+    //rgbLoop();
+#endif
 }
