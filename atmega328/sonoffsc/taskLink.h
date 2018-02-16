@@ -4,25 +4,25 @@
 #include <Arduino_FreeRTOS.h>
 #include <SerialLink.h>
 
+#define SERIAL_BAUDRATE         1000000
+
 class TaskLink {
 public:
-TaskLink() : link(Serial){
+  TaskLink() : link(Serial){
   }
+
   void begin(void) {
-    BaseType_t xReturned;
-    xReturned = xTaskCreate( taskLINK,
-                             (const portCHAR *) "TaskLINK",
-                             96,  // Stack size
-                             this,
-                             1,  // Priority
-                             NULL );
-    if (xReturned != pdPASS) {
-      Serial.println("task create failed");
-    }
+    xTaskCreate( taskLINK,
+                 (const portCHAR *) "TaskLINK",
+                 128,  // Stack size
+                 this,
+                 1,  // Priority
+                 NULL );
   }
-private:
 
   SerialLink link;
+
+private:
 
   void loop() {
     //link.handle();

@@ -2,15 +2,20 @@
 #define TASKAUDIO_H__
 
 #include <Arduino_FreeRTOS.h>
+#include "taskLink.h"
 
 #define BUFFERING 2
 #define WAVSIZE 64
 
 #define OTHER_BUFFER(current) ((current + 1) & 1)
 
+extern TaskLink tlink;
+
 class TaskAudio;
 
 TaskAudio *gTA = NULL;
+
+volatile int isrdiff;
 
 class TaskAudio {
 public:
@@ -23,9 +28,9 @@ public:
   void begin(void) {
     xTaskCreate( taskAUDIO,
                              (const portCHAR *) "TaskAUDIO",
-                             100,  // Stack size
+                             192,  // Stack size
                              this,
-                             3,  // Priority
+                             1,  // Priority
                              &xTaskToNotify );
 
     startSampling();
@@ -41,8 +46,11 @@ public:
       buffCnt[current&1] = 0;
       notifications++;
       vTaskNotifyGiveFromISR( xTaskToNotify, &xHigherPriorityTaskWoken );
+      taskYIELD();
     }
   }
+
+private:
 
   static void reInit() {
     if(gTA) {
@@ -50,7 +58,6 @@ public:
     }
   }
 
-private:
   int pin_;
   int noise_;
 
@@ -144,18 +151,17 @@ private:
     notifications--;
 #if 1
     Serial.print("Audio: ");
-    Serial.write(buff[OTHER_BUFFER(current)], WAVSIZE);
-    //Serial.print(current);
+    //Serial.write(buff[OTHER_BUFFER(current)], WAVSIZE);
+    Serial.print(current);
+    Serial.print(" ");
+    Serial.print(isrdiff);
     Serial.print(" ");
     Serial.println(notifications);
 #endif
-#if 0
-    if (aaAudio.getADC(buff, WAVSIZE) )
-    {
-      //link.sendByteStream("AT+WAV", &buff[0], WAVSIZE, false);
-      Serial.write(buff, WAVSIZE);
-    }
+#if 1
+    tlink.link.sendByteStream("AT+WAV", buff[OTHER_BUFFER(current)], WAVSIZE, false);
 #endif
+
   }
 
   static void taskAUDIO( void *pvParameters ) {
@@ -175,11 +181,15 @@ private:
 };
 
 ISR(ADC_vect){
-  gTA->adcInt();
+  if((ADMUX & 0x1F) == 0x02){
+    gTA->adcInt();
+    isrdiff--;
+  }
 }
 
 // Don't know why this is required
 ISR(TIMER1_OVF_vect){
+  isrdiff++;
 }
 
 #endif

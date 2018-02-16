@@ -22,10 +22,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#include <WS2812FX.h>
 //#include <Ticker.h>
 
-//#include "at_messages.h"
+#include "at_messages.h"
+#include "taskLink.h"
 #include "taskAudio.h"
 #include "taskDHT.h"
-#include "taskLink.h"
 #include "taskLight.h"
 #include "taskDust.h"
 
@@ -603,10 +603,10 @@ void setup() {
   //  Serial.println(xPortGetFreeHeapSize());
 
   //tlink.begin();
-  //tdht.begin();
-  tlight.begin();
-  tdust.begin();
-  taudio.begin();
+  tdht.begin();
+  //tlight.begin();
+  //tdust.begin();
+  //  taudio.begin();
 
   //  Serial.print("NOW  with ");
   //  Serial.println(xPortGetFreeHeapSize());
@@ -639,42 +639,8 @@ void setup() {
 extern volatile int adcReady;
 
 void loop() {
-#if 0
-#endif
-  taskYIELD();
-#if 0
-  Serial.println("loop");
-  vTaskDelay(100);
-  //#if 0
-    static unsigned long last = 0;
-
-
-    // If AT+EVERY>0 then we are sending a signal every so many seconds
-    if ((every > 0) && ((millis() - last > every) || (last == 0))) {
-        last = millis();
-
-        temperature = getTemperature();
-        if (push) link.send_P(at_temp, 10 * temperature, false);
-
-        //micLoop();
-
-        humidity = getHumidity();
-        if (push) link.send_P(at_hum, humidity, false);
-
-        //micLoop();
-
-        adcReady = 0; while(adcReady == 0); // BFH
-        aaAudio.enableAdcChannel(MICROPHONE_PIN);
-
-        //micLoop();
-
-    }
-
-
-    //   fanTicker.update();
-    //noiseLoop();
-    //micLoop();
-    //moveLoop();
-    //rgbLoop();
-#endif
+  //  tlight.loop();
+  //tdust.loop();
+  //  taskYIELD();
+  //tlink.link.handle();
 }
