@@ -589,7 +589,7 @@ void linkSetup() {
 // -----------------------------------------------------------------------------
 #endif
 
-TaskDHT tdht(6, idDHTLib::DHT22);
+TaskDHT tdht(6, 22);
 TaskLink tlink;
 TaskLight tlight(LDR_PIN);
 TaskDust tdust(SHARP_READ_PIN, SHARP_LED_PIN);
@@ -603,10 +603,10 @@ void setup() {
   //  Serial.println(xPortGetFreeHeapSize());
 
   //tlink.begin();
-  tdht.begin();
+  //tdht.begin();
   //tlight.begin();
   //tdust.begin();
-  //  taudio.begin();
+  //taudio.begin();
 
   //  Serial.print("NOW  with ");
   //  Serial.println(xPortGetFreeHeapSize());
@@ -638,9 +638,27 @@ void setup() {
 
 extern volatile int adcReady;
 
+
 void loop() {
-  //  tlight.loop();
-  //tdust.loop();
-  //  taskYIELD();
-  //tlink.link.handle();
+  static int rotate = 0;
+  bool ready = true;
+
+  ready = taudio.loop();
+
+  if(!ready) return;
+
+  switch (rotate++) {
+    case 0:
+      tlight.loop();
+      break;
+    case 1:
+      tdust.loop();
+      break;
+    case 2:
+      tdht.loop();
+      break;
+    default:
+      rotate = 0;
+      break;
+  }
 }

@@ -1,7 +1,9 @@
 #ifndef TASKAUDIO_H__
 #define TASKAUDIO_H__
 
+#if FREERTOS
 #include <Arduino_FreeRTOS.h>
+#endif
 #include "taskLink.h"
 
 #define BUFFERING 2
@@ -17,36 +19,56 @@ TaskAudio *gTA = NULL;
 
 volatile int isrdiff;
 
+uint32_t lasttime;
+
+uint8_t gCurrent;
+uint8_t gOldCurrent;
+
 class TaskAudio {
 public:
   TaskAudio(int pin) : pin_(pin){
     pinMode(pin_, INPUT_PULLUP);
-
     gTA = this;
   }
 
+  void initialize(void) {
+    static bool isInitialized = false;
+    if (!isInitialized) {
+      startSampling();
+      setSampleRate(16000);
+      isInitialized = true;
+    }
+  }
+
+#if FREERTOS
+  TaskHandle_t xTaskToNotify;
   void begin(void) {
     xTaskCreate( taskAUDIO,
                              (const portCHAR *) "TaskAUDIO",
                              192,  // Stack size
                              this,
-                             1,  // Priority
+                             3,  // Priority
                              &xTaskToNotify );
-
-    startSampling();
-    setSampleRate(16000);
   }
+#endif
+
+  uint8_t rot;
+
+  int32_t irqstamp;
 
   void adcInt() {
-    buff[current&1][buffCnt[current&1]++] = ADCH;
+    buff[current&1][buffCnt[current&1]++] = ADCH; //rot;
 
     if(buffCnt[current&1] == WAVSIZE) {
-      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
       current ++;
+      gCurrent = current;
+      rot = (rot+1)&0x3;
       buffCnt[current&1] = 0;
       notifications++;
-      vTaskNotifyGiveFromISR( xTaskToNotify, &xHigherPriorityTaskWoken );
-      taskYIELD();
+#if FREERTOS
+      vTaskNotifyGiveFromISR( xTaskToNotify, NULL );
+#endif
+      irqstamp = micros();
     }
   }
 
@@ -66,8 +88,6 @@ private:
   uint8_t buff[BUFFERING][WAVSIZE];
   uint8_t buffCnt[BUFFERING];
   uint8_t current;
-
-  TaskHandle_t xTaskToNotify;
 
   void configureADC(void) {
     analogRead(pin_);
@@ -146,24 +166,63 @@ private:
     OCR1A = 250;    // Default 25%/75% duty cycle
   }
 
-  void loop() {
+public:
+  bool loop (void) {
+    static uint8_t oldcurrent;
+    static int oldnotifications;
+    initialize();
+
+    if(current == oldcurrent)
+      return false;
+    gOldCurrent = current;
+    oldcurrent = current;
+
+#if FREERTOS
     ulTaskNotifyTake( pdTRUE, 100 );
-    notifications--;
-#if 1
-    Serial.print("Audio: ");
-    //Serial.write(buff[OTHER_BUFFER(current)], WAVSIZE);
-    Serial.print(current);
-    Serial.print(" ");
-    Serial.print(isrdiff);
-    Serial.print(" ");
-    Serial.println(notifications);
-#endif
-#if 1
-    tlink.link.sendByteStream("AT+WAV", buff[OTHER_BUFFER(current)], WAVSIZE, false);
 #endif
 
+    uint32_t us = micros();
+    uint32_t delay = us - lasttime;
+    lasttime = us;
+
+    notifications--;
+
+    oldnotifications = notifications;
+
+    if( oldnotifications != notifications) {
+      Serial.print("Audio: ");
+      Serial.print(current);
+      Serial.print(" ");
+      Serial.print(isrdiff);
+      Serial.print(" ");
+      Serial.print(notifications);
+      Serial.print(" ");
+      Serial.print((int32_t)us - irqstamp);
+      Serial.print(" ");
+      Serial.println(delay);
+    }
+#if 1
+    tlink.link.sendByteStream("AT+WAV",
+                              (const char *)buff[OTHER_BUFFER(current)],
+                              WAVSIZE,
+                              false);
+#endif
+
+    if( 0 ) {
+      Serial.print("Audio: time ");
+      Serial.println(micros() - us);
+    }
+
+    if(gCurrent != gOldCurrent)
+    {
+      Serial.println("ACTUALY OKKKKKKKKK");
+    }
+
+
+    return true;
   }
 
+#if FREERTOS
   static void taskAUDIO( void *pvParameters ) {
     TaskAudio *t = (TaskAudio*)pvParameters;
     for(;;) {
@@ -177,7 +236,7 @@ private:
 #endif
     }
   }
-
+#endif
 };
 
 ISR(ADC_vect){

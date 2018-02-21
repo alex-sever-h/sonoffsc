@@ -1,17 +1,20 @@
 #ifndef TASKLIGHT_H__
 #define TASKLIGHT_H__
 
+#if FREERTOS
 #include <Arduino_FreeRTOS.h>
+#endif
 
 #define ADC_COUNTS              1024
 
 class TaskLight {
 public:
-TaskLight(int pin) : pin_(pin), periodMs_(500) {
-    xDelay_ = periodMs_ / portTICK_PERIOD_MS;
+TaskLight(int pin) : pin_(pin), periodMs_(100) {
     pinMode(pin_, INPUT);
+    analogRead(pin_);
   }
 
+#if FREERTOS
   void begin(void) {
     xTaskCreate( taskLIGHT,
                  (const portCHAR *) "TaskLIGHT",
@@ -20,35 +23,38 @@ TaskLight(int pin) : pin_(pin), periodMs_(500) {
                  1,  // Priority
                  NULL );
   }
+#endif
 
-  void loop(void) {
+  bool loop(void) {
     static unsigned long previousMillis = 0;
     unsigned long currentMillis = millis();
     if(currentMillis - previousMillis > periodMs_) {
       previousMillis = currentMillis;
       work();
+      return true;
     }
+    return false;
   }
 
 private:
-  TickType_t xDelay_;
   int pin_;
   int light_;
-  int periodMs_;
+  unsigned long periodMs_;
 
   void work() {
     getLight();
-#if 1
+#if 0
     Serial.print("Light: ");
     Serial.println(light_);
 #endif
     if (1) tlink.link.send_P(at_light, light_, false);
 
-    if (1) checkStack();
+#if FREERTOS
+    if (0) checkStack();
+#endif
   }
 
   void taskLoop() {
-    vTaskDelay(xDelay_);
     work();
   }
 
@@ -62,18 +68,18 @@ private:
     if(ADCSRA & _BV(ADATE)){      // wait for a conversion to start and end if auto-trigger
       while(!conversionInProgress()){};
       while(conversionInProgress()){};
-      // Stop interrupts and trigger
-      oldADCSRA = ADCSRA;
-      oldADMUX = ADMUX;
-      ADCSRA &= ~_BV(ADIE);
-      ADCSRA &= ~_BV(ADATE);
     }
+    // Stop interrupts and trigger
+    oldADCSRA = ADCSRA;
+    oldADMUX = ADMUX;
+    ADCSRA &= ~_BV(ADIE);
+    ADCSRA &= ~_BV(ADATE);
 
     if (pin >= 14)
       channel = pin - 14;
 
     ADMUX = (analog_reference << 6) | (channel & 0x07);
-    cli();
+    //cli();
     // start the conversion
     ADCSRA |= _BV(ADSC);
     // ADSC is cleared when the conversion finishes
@@ -86,7 +92,7 @@ private:
     ADCSRA = oldADCSRA | _BV(ADIF);
     ADMUX = oldADMUX;
 
-    sei();
+    //sei();
 
     return raw;
   }
@@ -103,6 +109,7 @@ private:
     light_ = map(raw, 0, ADC_COUNTS, 100, 0);
   }
 
+#if FREERTOS
   void checkStack() {
       UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
       Serial.print(__func__);
@@ -116,6 +123,7 @@ private:
       t->taskLoop();
     }
   }
+#endif
 
 };
 

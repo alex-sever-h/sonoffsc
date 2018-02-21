@@ -1,22 +1,25 @@
 #ifndef TASKDUST_H__
 #define TASKDUST_H__
 
+#if FREERTOS
 #include <Arduino_FreeRTOS.h>
+#endif
 
 #define ADC_COUNTS              1024
 
-#define SHARP_SAMPLING_TIME	    280
-#define SHARP_DELTA_TIME		40
-#define SHARP_SLEEP_TIME		9680
+#define SHARP_SAMPLING_TIME  (280 - 10)
+#define SHARP_DELTA_TIME     ( 40 - 10)
+#define SHARP_SLEEP_TIME     (9680)
 
 class TaskDust {
 public:
-TaskDust(int pin, int ledPin) : pin_(pin), ledPin_(ledPin), periodMs_(500) {
-    xDelay_ = periodMs_ / portTICK_PERIOD_MS;
+TaskDust(int pin, int ledPin) : pin_(pin), ledPin_(ledPin), periodMs_(100) {
     pinMode(pin_, INPUT);
     pinMode(ledPin_, OUTPUT);
+    analogRead(pin_);
   }
 
+#if FREERTOS
   void begin(void) {
     xTaskCreate( taskDUST,
                  (const portCHAR *) "TaskDUST",
@@ -25,6 +28,7 @@ TaskDust(int pin, int ledPin) : pin_(pin), ledPin_(ledPin), periodMs_(500) {
                  1,  // Priority
                  NULL );
   }
+#endif
 
   void loop(void) {
     static unsigned long previousMillis = 0;
@@ -37,24 +41,24 @@ TaskDust(int pin, int ledPin) : pin_(pin), ledPin_(ledPin), periodMs_(500) {
 
   void work() {
     dust_ = getDust();
-#if 1
+#if 0
     Serial.print("Dust: ");
     Serial.println(dust_);
 #endif
-    if (1) tlink.link.send_P(at_dust, dust_, false);
+    if (1) tlink.link.send_P(at_dust, dust_ * 100, false);
 
-    if (1) checkStack();
+#if FREERTOS
+    if (0) checkStack();
+#endif
   }
 
 private:
-  TickType_t xDelay_;
   int pin_;
   int ledPin_;
   float dust_;
-  int periodMs_;
+  unsigned long periodMs_;
 
   void taskLoop() {
-    vTaskDelay(xDelay_);
     work();
   }
 
@@ -68,18 +72,18 @@ private:
     if(ADCSRA & _BV(ADATE)){      // wait for a conversion to start and end if auto-trigger
       while(!conversionInProgress()){};
       while(conversionInProgress()){};
-      // Stop interrupts and trigger
-      oldADCSRA = ADCSRA;
-      oldADMUX = ADMUX;
-      ADCSRA &= ~_BV(ADIE);
-      ADCSRA &= ~_BV(ADATE);
     }
+    // Stop interrupts and trigger
+    oldADCSRA = ADCSRA;
+    oldADMUX = ADMUX;
+    ADCSRA &= ~_BV(ADIE);
+    ADCSRA &= ~_BV(ADATE);
 
     if (pin >= 14)
       channel = pin - 14;
 
     ADMUX = (analog_reference << 6) | (channel & 0x07);
-    cli();
+    //cli();
     // start the conversion
     ADCSRA |= _BV(ADSC);
     // ADSC is cleared when the conversion finishes
@@ -92,27 +96,31 @@ private:
     ADCSRA = oldADCSRA | _BV(ADIF);
     ADMUX = oldADMUX;
 
-    sei();
+    //sei();
 
     return raw;
+  }
+
+  void MYdelayMicroseconds(int us) {
+    long start = micros();
+    while ((long)micros() - start < us);
   }
 
   // 0.5V ==> 100ug/m3
   float getDust() {
 
     digitalWrite(ledPin_, LOW);
-    delayMicroseconds(SHARP_SAMPLING_TIME);
+    MYdelayMicroseconds(SHARP_SAMPLING_TIME);
 
     float reading = MYanalogRead(pin_);
 
-    delayMicroseconds(SHARP_DELTA_TIME);
+    MYdelayMicroseconds(SHARP_DELTA_TIME);
     digitalWrite(ledPin_, HIGH);
 
     // mg/m3
     float dust = 170.0 * reading * (5.0 / 1024.0) - 100.0;
     if (dust < 0) dust = 0;
     return dust;
-
   }
 
   bool conversionInProgress() {
@@ -120,6 +128,7 @@ private:
     return convProgress;
   }
 
+#if FREERTOS
   void checkStack() {
       UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
       Serial.print(__func__);
@@ -133,7 +142,7 @@ private:
       t->taskLoop();
     }
   }
-
+#endif
 };
 
 #endif
