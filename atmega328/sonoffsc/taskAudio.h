@@ -1,28 +1,18 @@
 #ifndef TASKAUDIO_H__
 #define TASKAUDIO_H__
 
-#if FREERTOS
-#include <Arduino_FreeRTOS.h>
-#endif
-#include "taskLink.h"
-
 #define BUFFERING 2
 #define WAVSIZE 64
 
 #define OTHER_BUFFER(current) ((current + 1) & 1)
 
-extern TaskLink tlink;
-
 class TaskAudio;
 
-TaskAudio *gTA = NULL;
+static TaskAudio *gTA = NULL;
 
 volatile int isrdiff;
 
 uint32_t lasttime;
-
-uint8_t gCurrent;
-uint8_t gOldCurrent;
 
 class TaskAudio {
 public:
@@ -40,46 +30,20 @@ public:
     }
   }
 
-#if FREERTOS
-  TaskHandle_t xTaskToNotify;
-  void begin(void) {
-    xTaskCreate( taskAUDIO,
-                             (const portCHAR *) "TaskAUDIO",
-                             192,  // Stack size
-                             this,
-                             3,  // Priority
-                             &xTaskToNotify );
-  }
-#endif
-
-  uint8_t rot;
-
   int32_t irqstamp;
 
   void adcInt() {
-    buff[current&1][buffCnt[current&1]++] = ADCH; //rot;
+    buff[current&1][buffCnt[current&1]++] = ADCH;
 
     if(buffCnt[current&1] == WAVSIZE) {
-      current ++;
-      gCurrent = current;
-      rot = (rot+1)&0x3;
+      current++;
       buffCnt[current&1] = 0;
       notifications++;
-#if FREERTOS
-      vTaskNotifyGiveFromISR( xTaskToNotify, NULL );
-#endif
       irqstamp = micros();
     }
   }
 
 private:
-
-  static void reInit() {
-    if(gTA) {
-      gTA->configureADC();
-    }
-  }
-
   int pin_;
   int noise_;
 
@@ -89,13 +53,9 @@ private:
   uint8_t buffCnt[BUFFERING];
   uint8_t current;
 
-  void configureADC(void) {
+  void startSampling(){
     analogRead(pin_);
     adcSetup();
-  }
-
-  void startSampling(){
-    configureADC();
     tcSetup();
   }
 
@@ -115,41 +75,28 @@ private:
       ticks >>= 1;
       ctr++;
     }
-#if 0
-    if(ctr >= 10){
-      defaultShift = ctr - 10;
-    }else{
-      defaultShift = 0;
-    }
-#endif
   }
 
   uint32_t frequencyToTimerCount(uint32_t frequency){
-
-    if(frequency < 5){
+    if(frequency < 5) {
       TCCR1B &= ~(_BV(CS11)) | ~(_BV(CS10));
       TCCR1B |= _BV(CS12);
       return F_CPU / 256UL / frequency;
-    }else
-      if(frequency < 35){
-        TCCR1B |= _BV(CS11) | _BV(CS10);      //Prescaler F_CPU/64
-        return F_CPU / 64UL / frequency;
-      }else
-        if(frequency < 250){
-          TCCR1B |= _BV(CS11);                  //Prescaler F_CPU/8
-          TCCR1B &= ~(_BV(CS10));
-          return F_CPU / 8UL / frequency;
-        }else
-        {
-          TCCR1B &= ~(_BV(CS11));               //Prescaler F_CPU
-          TCCR1B |= _BV(CS10);
-          return F_CPU / frequency;
-        }
-
+    } else if(frequency < 35) {
+      TCCR1B |= _BV(CS11) | _BV(CS10);      //Prescaler F_CPU/64
+      return F_CPU / 64UL / frequency;
+    } else if(frequency < 250) {
+      TCCR1B |= _BV(CS11);                  //Prescaler F_CPU/8
+      TCCR1B &= ~(_BV(CS10));
+      return F_CPU / 8UL / frequency;
+    } else {
+      TCCR1B &= ~(_BV(CS11));               //Prescaler F_CPU
+      TCCR1B |= _BV(CS10);
+      return F_CPU / frequency;
+    }
   }
 
   void adcSetup(void){
-
     ADCSRA = _BV(ADEN) | _BV(ADATE) | _BV(ADPS2) ; // En ADC, En Auto Trigger, Prescaler 8 (16Mhz/13/8 = ~150Khz)
     ADCSRB = _BV(ADTS2) | _BV(ADTS1);
     ADMUX |= _BV(REFS0) | _BV(ADLAR);   // 5V reference and capacitor |  Left adjust result for 8-bit
@@ -174,12 +121,7 @@ public:
 
     if(current == oldcurrent)
       return false;
-    gOldCurrent = current;
     oldcurrent = current;
-
-#if FREERTOS
-    ulTaskNotifyTake( pdTRUE, 100 );
-#endif
 
     uint32_t us = micros();
     uint32_t delay = us - lasttime;
@@ -213,30 +155,8 @@ public:
       Serial.println(micros() - us);
     }
 
-    if(gCurrent != gOldCurrent)
-    {
-      Serial.println("ACTUALY OKKKKKKKKK");
-    }
-
-
     return true;
   }
-
-#if FREERTOS
-  static void taskAUDIO( void *pvParameters ) {
-    TaskAudio *t = (TaskAudio*)pvParameters;
-    for(;;) {
-      t->loop();
-
-#if 1
-      UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
-      Serial.print(__func__);
-      Serial.print(" Stack remaining: ");
-      Serial.println(uxHighWaterMark);
-#endif
-    }
-  }
-#endif
 };
 
 ISR(ADC_vect){

@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "at_messages.h"
 #include "taskLink.h"
-#include "taskAudio.h"
 #include "taskDHT.h"
 #include "taskLight.h"
 #include "taskDust.h"
+#include "taskAudio.h"
 
 #define SERIAL_BAUDRATE         1000000
 
@@ -599,18 +599,6 @@ void setup() {
   // Setup Serial port
   Serial.begin(SERIAL_BAUDRATE);
 
-  //  Serial.print("Start with ");
-  //  Serial.println(xPortGetFreeHeapSize());
-
-  //tlink.begin();
-  //tdht.begin();
-  //tlight.begin();
-  //tdust.begin();
-  //taudio.begin();
-
-  //  Serial.print("NOW  with ");
-  //  Serial.println(xPortGetFreeHeapSize());
-
 #if 0
 
     link.send_P(at_hello, 1);
@@ -643,6 +631,7 @@ void loop() {
   static int rotate = 0;
   bool ready = true;
 
+#if 1
   ready = taudio.loop();
 
   if(!ready) return;
@@ -661,4 +650,8 @@ void loop() {
       rotate = 0;
       break;
   }
+#else
+  tdust.loop();
+  tlight.loop();
+#endif
 }

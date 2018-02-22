@@ -1,40 +1,18 @@
 #ifndef TASKDHT_H__
 #define TASKDHT_H__
 
-#if FREERTOS
-#include <Arduino_FreeRTOS.h>
-#endif
+#include <TaskPeriodic.h>
 #include <dht.h>
 
 static const int debug_ = 0;
 
-class TaskDHT {
-public:
-TaskDHT(int pin, int type) : pin_(pin), periodMs_(2000) {
-    //pinMode(pin_, INPUT);
-  }
-
-#if FREERTOS
-  void begin(void) {
-    xTaskCreate( taskDHT,
-                             (const portCHAR *) "TaskDHT",
-                             192,  // Stack size
-                             this,
-                             1,  // Priority
-                             NULL );
-  }
-  TaskHandle_t pxCreatedTask_;
-#endif
-
+class TaskDHT : public TaskPeriodic {
 private:
   int pin_;
-
-  unsigned long periodMs_;
+  dht DHT;
 
   float temperature_;
-  int humidity_;
-
-  dht DHT;
+  float humidity_;
 
   struct
   {
@@ -49,33 +27,14 @@ private:
     uint32_t maxReadTime;
   } stat = { 0 };
 
-public:
-  bool loop(void) {
-    static unsigned long previousMillis = 0;
-    unsigned long currentMillis = millis();
-    if(currentMillis - previousMillis > periodMs_) {
-      previousMillis = currentMillis;
-      work();
-      return true;
-    }
-    return false;
-  }
-
-private:
-  bool work() {
-
-    if (0){
-      Serial.print("Audio: will be blocked from: ");
-      Serial.println(micros() - lasttime);
-    }
-
+  bool work(void) {
     uint32_t start = micros();
     int chk = DHT.read22(pin_);
     uint32_t stop = micros();
     uint32_t diff = stop-start;
 
     //    if(diff > stat.maxReadTime)
-      stat.maxReadTime = diff;
+    stat.maxReadTime = diff;
     if (0) {
       Serial.print("Audio: delay will be  ");
       Serial.println(stat.maxReadTime);
@@ -85,31 +44,31 @@ private:
     stat.total++;
     switch (chk)
     {
-    case DHTLIB_OK:
+      case DHTLIB_OK:
         stat.ok++;
         if (debug_) Serial.print("OK,\n");
         break;
-    case DHTLIB_ERROR_CHECKSUM:
+      case DHTLIB_ERROR_CHECKSUM:
         stat.crc_error++;
         if (debug_) Serial.print("Checksum error,\n");
         break;
-    case DHTLIB_ERROR_TIMEOUT:
+      case DHTLIB_ERROR_TIMEOUT:
         stat.time_out++;
         if (debug_) Serial.print("Time out error,\n");
         break;
-    case DHTLIB_ERROR_CONNECT:
+      case DHTLIB_ERROR_CONNECT:
         stat.connect++;
         if (debug_) Serial.print("Connect error,\n");
         break;
-    case DHTLIB_ERROR_ACK_L:
+      case DHTLIB_ERROR_ACK_L:
         stat.ack_l++;
         if (debug_) Serial.print("Ack Low error,\n");
         break;
-    case DHTLIB_ERROR_ACK_H:
+      case DHTLIB_ERROR_ACK_H:
         stat.ack_h++;
         if (debug_) Serial.print("Ack High error,\n");
         break;
-    default:
+      default:
         stat.unknown++;
         if (debug_) Serial.print("Unknown error,\n");
         break;
@@ -136,7 +95,7 @@ private:
         Serial.print("\t");
         Serial.print(stat.maxReadTime);
         Serial.println("\n");
-    }
+      }
     }
 
     temperature_ = DHT.temperature;
@@ -144,29 +103,17 @@ private:
 
     if(chk == DHTLIB_OK) {
       tlink.link.send_P(at_temp, temperature_ * 10, false);
-      tlink.link.send_P(at_hum, humidity_, false);
+      tlink.link.send_P(at_hum, humidity_ * 10, false);
     }
 
     return true;
   }
 
-#if FREERTOS
-  static void taskDHT( void *pvParameters ) {
-    TaskDHT *t = (TaskDHT*)pvParameters;
-    while(1) {
-      const TickType_t xDelay = 2000 / portTICK_PERIOD_MS;
-
-      t->loop();
-#if 0
-      UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
-      Serial.print(__func__);
-      Serial.print(" Stack remaining: ");
-      Serial.println(uxHighWaterMark);
-#endif
-      vTaskDelay(xDelay);
-    }
+public:
+TaskDHT(int pin, int type) : TaskPeriodic(1000), pin_(pin) {
+    pinMode(pin_, INPUT);
   }
-#endif
+
 };
 
 
