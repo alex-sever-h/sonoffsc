@@ -27,19 +27,9 @@ private:
     uint32_t maxReadTime;
   } stat = { 0 };
 
-  bool work(void) {
-    uint32_t start = micros();
-    int chk = DHT.read22(pin_);
-    uint32_t stop = micros();
-    uint32_t diff = stop-start;
-
-    //    if(diff > stat.maxReadTime)
-    stat.maxReadTime = diff;
-    if (0) {
-      Serial.print("Audio: delay will be  ");
-      Serial.println(stat.maxReadTime);
-    }
-    //return true;
+  void updateStats(int chk, uint32_t diff) {
+    if(diff > stat.maxReadTime)
+      stat.maxReadTime = diff;
 
     stat.total++;
     switch (chk)
@@ -73,7 +63,9 @@ private:
         if (debug_) Serial.print("Unknown error,\n");
         break;
     }
+  }
 
+  void printStats() {
     if (debug_) {
       if (stat.total % 20 == 0) {
         Serial.println("\nTOT\tOK\tCRC\tTO\tCON\tACK_L\tACK_H\tUNK\tREAD TIME");
@@ -97,11 +89,21 @@ private:
         Serial.println("\n");
       }
     }
+  }
 
-    temperature_ = DHT.temperature;
-    humidity_ = DHT.humidity;
+  bool work(void) {
+    uint32_t start = micros();
+    int chk = DHT.read22(pin_);
+    uint32_t stop = micros();
+    uint32_t diff = stop-start;
+
+    updateStats(chk, diff);
+    printStats();
 
     if(chk == DHTLIB_OK) {
+      temperature_ = DHT.temperature;
+      humidity_ = DHT.humidity;
+
       tlink.link.send_P(at_temp, temperature_ * 10, false);
       tlink.link.send_P(at_hum, humidity_ * 10, false);
     }
@@ -110,7 +112,7 @@ private:
   }
 
 public:
-TaskDHT(int pin, int type) : TaskPeriodic(1000), pin_(pin) {
+TaskDHT(int pin) : TaskPeriodic(1000), pin_(pin) {
     pinMode(pin_, INPUT);
   }
 

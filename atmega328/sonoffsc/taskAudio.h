@@ -1,10 +1,14 @@
 #ifndef TASKAUDIO_H__
 #define TASKAUDIO_H__
 
+#include <algorithm>
+
 #define BUFFERING 2
 #define WAVSIZE 64
 
 #define OTHER_BUFFER(current) ((current + 1) & 1)
+
+static const int gDebug_ = 0;
 
 class TaskAudio;
 
@@ -14,11 +18,39 @@ volatile int isrdiff;
 
 uint32_t lasttime;
 
+static uint8_t buff[BUFFERING][WAVSIZE];
+static uint8_t current;
+static uint8_t *cBuff;
+static uint8_t *cBuffEnd;
+
+ISR(ADC_vect){
+#if 0
+  //if((ADMUX & 0x1F) == 0x02)
+  {
+    TaskAudio::adcInt();
+    if(gDebug_) isrdiff--;
+  }
+#else // cut the crap
+  *cBuff++ = ADCH;
+
+  if(cBuff == cBuffEnd) {
+    current = !current;
+    cBuff = &buff[current][0];
+    cBuffEnd = cBuff + WAVSIZE;
+  }
+
+#endif
+}
+
 class TaskAudio {
 public:
   TaskAudio(int pin) : pin_(pin){
     pinMode(pin_, INPUT_PULLUP);
     gTA = this;
+
+    current = 0;
+    cBuff = &buff[current][0];
+    cBuffEnd = &buff[current][WAVSIZE];
   }
 
   void initialize(void) {
@@ -32,15 +64,25 @@ public:
 
   int32_t irqstamp;
 
-  void adcInt() {
-    buff[current&1][buffCnt[current&1]++] = ADCH;
+  static void adcInt() {
 
+    *cBuff++ = ADCH;
+
+    if(cBuff == cBuffEnd) {
+      current = !current;
+      cBuff = &buff[current][0];
+      cBuffEnd = &buff[current][WAVSIZE];
+    }
+#if 0
+
+    buff[current&1][buffCnt[current&1]++] = ADCH;
     if(buffCnt[current&1] == WAVSIZE) {
       current++;
       buffCnt[current&1] = 0;
       notifications++;
       irqstamp = micros();
     }
+#endif
   }
 
 private:
@@ -48,10 +90,6 @@ private:
   int noise_;
 
   volatile int notifications;
-
-  uint8_t buff[BUFFERING][WAVSIZE];
-  uint8_t buffCnt[BUFFERING];
-  uint8_t current;
 
   void startSampling(){
     analogRead(pin_);
@@ -61,7 +99,7 @@ private:
 
   void setSampleRate(uint32_t sampRate){
     uint16_t tcTicks = 1000;                    /* Stores the current TC0 Ch0 counter value */
-    tcTicks = max(5, frequencyToTimerCount(sampRate));
+    tcTicks = std::max(5UL, frequencyToTimerCount(sampRate));
     ICR1 = tcTicks;
     OCR1A = tcTicks/2;
     OCR1B = tcTicks/2;
@@ -159,16 +197,10 @@ public:
   }
 };
 
-ISR(ADC_vect){
-  if((ADMUX & 0x1F) == 0x02){
-    gTA->adcInt();
-    isrdiff--;
-  }
-}
 
 // Don't know why this is required
 ISR(TIMER1_OVF_vect){
-  isrdiff++;
+  if(gDebug_) isrdiff++;
 }
 
 #endif
