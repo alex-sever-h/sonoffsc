@@ -13,7 +13,7 @@
 class TaskDust : public TaskPeriodic, public TaskAnalog {
   int pin_;
   int ledPin_;
-  float dust_;
+  float dust_mg_m3_;
 
   void MYdelayMicroseconds(int us) {
     long start = micros();
@@ -38,12 +38,12 @@ class TaskDust : public TaskPeriodic, public TaskAnalog {
   }
 
   bool work() {
-    dust_ = getDust();
+    dust_mg_m3_ = getDust();
 #if 0
     Serial.print("Dust: ");
-    Serial.println(dust_);
+    Serial.println(dust_mg_m3_);
 #endif
-    if (1) tlink.link.send_P(at_dust, dust_ * 100, false);
+    if (1) tlink.link.send_P(at_dust, dust_mg_m3_ * 100, false);
 
     return true;
   }
