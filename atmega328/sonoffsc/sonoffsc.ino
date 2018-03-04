@@ -22,7 +22,7 @@
 //#include <Ticker.h>
 
 #include "at_messages.h"
-#include "taskLink.h"
+#include <SerialLink.h>
 #include "taskDHT.h"
 #include "taskLight.h"
 #include "taskDust.h"
@@ -585,13 +585,13 @@ void linkSetup() {
 // MAIN
 // -----------------------------------------------------------------------------
 
-TaskLink tlink;
+SerialLink link(Serial);
 
-TaskDHT tdht(DHT_PIN);
-TaskLight tlight(LDR_PIN);
-TaskDust tdust(SHARP_READ_PIN, SHARP_LED_PIN);
-TaskAudio taudio(MICROPHONE_PIN);
-TaskRGB trgb(RGB_PIN, RGB_COUNT);
+TaskDHT tdht(link, DHT_PIN);
+TaskLight tlight(link, LDR_PIN);
+TaskDust tdust(link, SHARP_READ_PIN, SHARP_LED_PIN);
+TaskAudio taudio(link, MICROPHONE_PIN);
+TaskRGB trgb(link, RGB_PIN, RGB_COUNT);
 
 void setup() {
   // Setup Serial port
@@ -610,8 +610,7 @@ void setup() {
 #endif
 
   trgb.start();
-
-  //tlink.link.send_P(at_hello, 1);
+  link.send_P(at_hello, 1);
 }
 
 extern volatile int adcReady;
@@ -637,7 +636,7 @@ void loop() {
       tdht.loop();
       break;
     case 3:
-      tlink.loop();
+      link.handle();
       break;
     case 4:
       trgb.loop();

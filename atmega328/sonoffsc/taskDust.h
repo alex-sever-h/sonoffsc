@@ -11,6 +11,8 @@
 #define SHARP_SLEEP_TIME     (9680)
 
 class TaskDust : public TaskPeriodic, public TaskAnalog {
+  SerialLink &link_;
+
   int pin_;
   int ledPin_;
   float dust_mg_m3_;
@@ -43,13 +45,16 @@ class TaskDust : public TaskPeriodic, public TaskAnalog {
     Serial.print("Dust: ");
     Serial.println(dust_mg_m3_);
 #endif
-    if (1) tlink.link.send_P(at_dust, dust_mg_m3_ * 100, false);
+    if (1) link_.send_P(at_dust, dust_mg_m3_ * 100, false);
 
     return true;
   }
 
 public:
-TaskDust(int pin, int ledPin) : TaskPeriodic(100), pin_(pin), ledPin_(ledPin) {
+TaskDust(SerialLink &link, int pin, int ledPin) : TaskPeriodic(100),
+                                                  link_(link),
+                                                  pin_(pin),
+                                                  ledPin_(ledPin) {
     pinMode(pin_, INPUT);
     pinMode(ledPin_, OUTPUT);
     analogRead(pin_);

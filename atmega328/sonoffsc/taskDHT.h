@@ -8,6 +8,8 @@ static const int debug_ = 0;
 
 class TaskDHT : public TaskPeriodic {
 private:
+  SerialLink &link_;
+
   int pin_;
   dht DHT;
 
@@ -104,15 +106,15 @@ private:
       temperature_ = DHT.temperature;
       humidity_ = DHT.humidity;
 
-      tlink.link.send_P(at_temp, temperature_ * 10, false);
-      tlink.link.send_P(at_hum, humidity_ * 10, false);
+      link_.send_P(at_temp, temperature_ * 10, false);
+      link_.send_P(at_hum, humidity_ * 10, false);
     }
 
     return true;
   }
 
 public:
-TaskDHT(int pin) : TaskPeriodic(1000), pin_(pin) {
+TaskDHT(SerialLink &link, int pin) : TaskPeriodic(1000), link_(link), pin_(pin) {
     pinMode(pin_, INPUT);
   }
 

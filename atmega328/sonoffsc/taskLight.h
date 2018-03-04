@@ -17,13 +17,15 @@
 
 
 class TaskLight : public TaskPeriodic, public TaskAnalog {
+  SerialLink &link_;
+
   int pin_;
   float lightLux_;
 
   bool work() {
     lightLux_ = getLight();
 
-    if (1) tlink.link.send_P(at_light, lightLux_ * 100, false);
+    if (1) link_.send_P(at_light, lightLux_ * 100, false);
 
     return true;
   }
@@ -65,7 +67,7 @@ class TaskLight : public TaskPeriodic, public TaskAnalog {
 }
 
 public:
-TaskLight(int pin) : TaskPeriodic(100), pin_(pin) {
+TaskLight(SerialLink &link, int pin) : TaskPeriodic(100), link_(link), pin_(pin) {
     pinMode(pin_, INPUT);
     analogRead(pin_);
   }

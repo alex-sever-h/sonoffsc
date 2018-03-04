@@ -23,28 +23,25 @@ static uint8_t current;
 static uint8_t *cBuff;
 static uint8_t *cBuffEnd;
 
+volatile uint8_t gcurrent;
+volatile uint8_t gicurrent;
+
 ISR(ADC_vect){
-#if 0
-  //if((ADMUX & 0x1F) == 0x02)
-  {
-    TaskAudio::adcInt();
-    if(gDebug_) isrdiff--;
-  }
-#else // cut the crap
   *cBuff++ = ADCH;
 
   if(cBuff == cBuffEnd) {
     current = !current;
+    gicurrent = current;
     cBuff = &buff[current][0];
     cBuffEnd = cBuff + WAVSIZE;
   }
-
-#endif
 }
 
 class TaskAudio {
-public:
-  TaskAudio(int pin) : pin_(pin){
+  SerialLink &link_;
+
+ public:
+  TaskAudio(SerialLink &link, int pin) : link_(link), pin_(pin){
     pinMode(pin_, INPUT_PULLUP);
     gTA = this;
 
@@ -85,7 +82,7 @@ public:
 #endif
   }
 
-private:
+ private:
   int pin_;
   int noise_;
 
@@ -151,7 +148,7 @@ private:
     OCR1A = 250;    // Default 25%/75% duty cycle
   }
 
-public:
+ public:
   bool loop (void) {
     static uint8_t oldcurrent;
     static int oldnotifications;
@@ -160,6 +157,7 @@ public:
     if(current == oldcurrent)
       return false;
     oldcurrent = current;
+    gcurrent = current;
 
     uint32_t us = micros();
     uint32_t delay = us - lasttime;
@@ -181,12 +179,13 @@ public:
       Serial.print(" ");
       Serial.println(delay);
     }
-#if 1
-    tlink.link.sendByteStream("AT+WAV",
-                              (const char *)buff[OTHER_BUFFER(current)],
-                              WAVSIZE,
-                              false);
-#endif
+
+    if (1) {
+      link_.sendByteStream("AT+WAV",
+                           (const char *)buff[OTHER_BUFFER(current)],
+                           WAVSIZE,
+                           false);
+    }
 
     if( 0 ) {
       Serial.print("Audio: time ");
@@ -196,7 +195,6 @@ public:
     return true;
   }
 };
-
 
 // Don't know why this is required
 ISR(TIMER1_OVF_vect){

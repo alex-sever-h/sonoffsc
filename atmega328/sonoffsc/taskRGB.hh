@@ -1,10 +1,6 @@
 #ifndef TASKRGB_H__
 #define TASKRGB_H__
 
-#ifdef WSFX
-#include <WS2812FX.h>
-#endif
-
 #include <TaskPeriodic.h>
 
 #define RGB_COLOR               0x0000FF
@@ -258,71 +254,66 @@ void colorWipe(unsigned char r , unsigned char g, unsigned char b, unsigned  cha
   }
 }
 
+class TaskRGB;
 
 class TaskRGB : public TaskPeriodic {
+  SerialLink &link_;
+
   int pin_;
   int ledCount_;
 
-#ifdef WSFX
-  // Parameter 1 = number of pixels in strip
-  // Parameter 2 = pin number (most are valid)
-  // Parameter 3 = pixel type flags, add together as needed:
-  //   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-  //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-  //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-  //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-  WS2812FX ws2812fx;
-#endif
  public:
-  TaskRGB(int pin, int ledCount) :TaskPeriodic(100),
-                                  pin_(pin),
-                                  ledCount_(ledCount)
-#ifdef WSFX
-                                 , ws2812fx(ledCount, pin, NEO_GRB + NEO_KHZ800)
-#endif
+  TaskRGB(SerialLink &link, int pin, int ledCount) : TaskPeriodic(100),
+                                                     link_(link),
+                                                     pin_(pin),
+                                                     ledCount_(ledCount)
   {
   }
 
   void start(void) {
-#ifdef WSFX
-    // Neopixel setup and start animation
-    ws2812fx.init();
-    ws2812fx.setBrightness(RGB_BRIGHTNESS);
-    ws2812fx.setSpeed(RGB_SPEED);
-    ws2812fx.setColor(RGB_COLOR);
-    ws2812fx.setMode(RGB_EFFECT);
-    ws2812fx.start();
-#else
     ledsetup();
-#endif
+    link_.onSet(TaskRGB::linkSetRed);
   }
 
-  unsigned char r, g, b;
+  static unsigned char r, g, b;
 
-  bool work(void) {
-    g = 255;
-    //cli();
-    showColor(r, g, b);
-    //sei();
-
-    //r+=10;
-    //g+=20;
-    //b-=10;
-
-    Serial.print(" r ");
-    Serial.print(  r  );
-    Serial.print(" g ");
-    Serial.print(  g  );
-    Serial.print(" b ");
-    Serial.print(  b  );
+  static bool linkSetRed(char * key, long value) {
+    Serial.print("Got key ");
+    Serial.print(key);
+    Serial.print(" value ");
+    Serial.print(value);
     Serial.println();
 
+    TaskRGB::r = (value >> 16) & 0xFF;
+    TaskRGB::g = (value >>  8) & 0xFF;
+    TaskRGB::b = (value >>  0) & 0xFF;
+
+    return false;
+  }
+
+  bool work(void) {
+    //g = 255;
+    showColor(TaskRGB::r,
+              TaskRGB::g,
+              TaskRGB::b);
+
+    if (0) {
+      Serial.print(" r ");
+      Serial.print(  r  );
+      Serial.print(" g ");
+      Serial.print(  g  );
+      Serial.print(" b ");
+      Serial.print(  b  );
+      Serial.println();
+    }
     return true;
   }
 
 
 };
 
-
+static unsigned char TaskRGB::r;
+static unsigned char TaskRGB::g;
+static unsigned char TaskRGB::b;
 
 #endif
