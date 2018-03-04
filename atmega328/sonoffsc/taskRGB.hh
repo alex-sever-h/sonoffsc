@@ -278,16 +278,17 @@ class TaskRGB : public TaskPeriodic {
   static unsigned char r, g, b;
 
   static bool linkSetRed(char * key, long value) {
-    Serial.print("Got key ");
-    Serial.print(key);
-    Serial.print(" value ");
-    Serial.print(value);
-    Serial.println();
+    if(strcmp_P(at_color, key) == 0){
+      Serial.print("Got key ");
+      Serial.print(key);
+      Serial.print(" value ");
+      Serial.print(value);
+      Serial.println();
 
-    TaskRGB::r = (value >> 16) & 0xFF;
-    TaskRGB::g = (value >>  8) & 0xFF;
-    TaskRGB::b = (value >>  0) & 0xFF;
-
+      TaskRGB::r = (value >> 16) & 0xFF;
+      TaskRGB::g = (value >>  8) & 0xFF;
+      TaskRGB::b = (value >>  0) & 0xFF;
+    }
     return false;
   }
 
