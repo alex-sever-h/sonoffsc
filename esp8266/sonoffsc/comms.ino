@@ -6,6 +6,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
+#include <math.h>
 #include "SerialLink.h"
 
 SerialLink link(Serial, false);
@@ -35,7 +36,7 @@ const PROGMEM char at_move[] = "AT+MOVE";
 // -----------------------------------------------------------------------------
 
 float temperature;
-int humidity;
+float humidity;
 int light;
 float dust;
 float noise;
@@ -94,18 +95,18 @@ bool commsSet(char * key, long value) {
     }
 
     if (strcmp_P(key, at_hum) == 0) {
-        humidity = value;
+        humidity = (float) value / 10;
         if (humidity < SENSOR_HUMIDITY_MIN || SENSOR_HUMIDITY_MAX < humidity) return false;
         mqttSend(getSetting("mqttTopicHum", MQTT_TOPIC_HUMIDITY).c_str(), String(humidity).c_str());
         domoticzSend("dczIdxHum", humidity);
-        sprintf(buffer, "{\"sensorHum\": %d}", humidity);
+        sprintf(buffer, "{\"sensorHum\": %s}", String(humidity).c_str());
         wsSend(buffer);
         return true;
     }
 
     if (strcmp_P(key, at_light) == 0) {
         light = value;
-        if (light < 0 || 100 < light) return false;
+        //if (light < 0 || light > 0xFFFF) return false;
         mqttSend(getSetting("mqttTopicLight", MQTT_TOPIC_LIGHT).c_str(), String(light).c_str());
         domoticzSend("dczIdxLight", light);
         sprintf(buffer, "{\"sensorLight\": %d}", light);
@@ -115,7 +116,7 @@ bool commsSet(char * key, long value) {
 
     if (strcmp_P(key, at_dust) == 0) {
         dust = (float) value / 100;
-        if (dust < SENSOR_DUST_MIN || SENSOR_DUST_MAX < dust) return false;
+        //if (dust < SENSOR_DUST_MIN || SENSOR_DUST_MAX < dust) return false;
         mqttSend(getSetting("mqttTopicDust", MQTT_TOPIC_DUST).c_str(), String(dust).c_str());
         domoticzSend("dczIdxDust", dust);
         sprintf(buffer, "{\"sensorDust\": %s}", String(dust).c_str());
