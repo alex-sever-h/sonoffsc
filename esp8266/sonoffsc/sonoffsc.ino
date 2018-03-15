@@ -275,15 +275,34 @@ void setup() {
 
 void loop() {
 
+    mqttLoop();
+    commsLoop();
+
     hardwareLoop();
+
+    mqttLoop();
+    commsLoop();
+
     settingsLoop();
+
+    mqttLoop();
+    commsLoop();
+
     wifiLoop();
+
+    mqttLoop();
+    commsLoop();
+
     otaLoop();
+
+    mqttLoop();
+    commsLoop();
 
     // Do not run the next services if system is flagged stable
     if (!systemCheck()) return;
 
     buttonLoop();
+
     mqttLoop();
     commsLoop();
 
