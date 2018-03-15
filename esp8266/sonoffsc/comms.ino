@@ -38,7 +38,7 @@ float temperature;
 int humidity;
 int light;
 float dust;
-int noise;
+float noise;
 bool movement;
 
 bool gotResponse = false;
@@ -61,7 +61,17 @@ bool commsGet(char * key) {
 
 bool commsSetByteStream(char * key, char * payload, size_t payload_size) {
   //printf("Received key %s size %d payload :%s:\n", key, payload_size, payload);
-  mqttSendByteStream("wav", payload, payload_size);
+  //mqttSendByteStream("wav", payload, payload_size);
+
+  bool filled = audioLoadData(payload, payload_size);
+
+  if(filled) {
+    char buffer[50];
+    mqttSend(getSetting("mqttTopicNoise", MQTT_TOPIC_NOISE).c_str(), String(noise).c_str());
+    domoticzSend("dczIdxNoise", noise);
+    sprintf(buffer, "{\"sensorNoise\": %s}", String(noise).c_str());
+    wsSend(buffer);
+  }
 }
 
 bool commsSet(char * key, long value) {
@@ -118,7 +128,7 @@ bool commsSet(char * key, long value) {
         if (noise < 0 || 100 < noise) return false;
         mqttSend(getSetting("mqttTopicNoise", MQTT_TOPIC_NOISE).c_str(), String(noise).c_str());
         domoticzSend("dczIdxNoise", noise);
-        sprintf(buffer, "{\"sensorNoise\": %d}", noise);
+        sprintf(buffer, "{\"sensorNoise\": %s}", String(noise).c_str());
         wsSend(buffer);
         return true;
     }
