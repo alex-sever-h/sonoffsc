@@ -28,6 +28,7 @@
 #include "taskDust.h"
 #include "taskAudio.h"
 #include "taskRGB.hh"
+#include "taskMove.hh"
 
 #define SERIAL_BAUDRATE         1000000
 
@@ -42,6 +43,8 @@
 
 #define RGB_PIN                 11
 #define RGB_COUNT               18
+
+#define MOVE_PIN                 13
 
 #if 0
 // -----------------------------------------------------------------------------
@@ -592,6 +595,7 @@ TaskLight tlight(link, LDR_PIN);
 TaskDust tdust(link, SHARP_READ_PIN, SHARP_LED_PIN);
 TaskAudio taudio(link, MICROPHONE_PIN);
 TaskRGB trgb(link, RGB_PIN, RGB_COUNT);
+TaskMove tmove(link, MOVE_PIN);
 
 void setup() {
   // Setup Serial port
@@ -640,6 +644,9 @@ void loop() {
       break;
     case 4:
       trgb.loop();
+      break;
+    case 5:
+      tmove.loop();
       break;
     default:
       rotate = 0;
