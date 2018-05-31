@@ -41,10 +41,10 @@
 
 #define DHT_PIN                 6
 
-#define RGB_PIN                 11
-#define RGB_COUNT               18
+#define RGB_PIN                11
+#define RGB_COUNT              18
 
-#define MOVE_PIN                 13
+#define MOVE_PIN                7
 
 #if 0
 // -----------------------------------------------------------------------------
