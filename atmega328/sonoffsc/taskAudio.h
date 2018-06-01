@@ -1,7 +1,7 @@
 #ifndef TASKAUDIO_H__
 #define TASKAUDIO_H__
 
-#include <algorithm>
+//#include <algorithm>
 
 #define BUFFERING 2
 #define WAVSIZE 64
@@ -96,7 +96,7 @@ class TaskAudio {
 
   void setSampleRate(uint32_t sampRate){
     uint16_t tcTicks = 1000;                    /* Stores the current TC0 Ch0 counter value */
-    tcTicks = std::max(5UL, frequencyToTimerCount(sampRate));
+    tcTicks = max(5UL, frequencyToTimerCount(sampRate));
     ICR1 = tcTicks;
     OCR1A = tcTicks/2;
     OCR1B = tcTicks/2;
