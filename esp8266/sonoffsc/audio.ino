@@ -71,7 +71,7 @@ size_t audioFrameCounter;
 bool audioLoadData(char * data, size_t size) {
 
   if (size != 64) {
-    Serial.print("requested size: ");
+    Serial.print("bad requested size 64 != ");
     Serial.println(size);
   }
 
