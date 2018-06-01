@@ -588,7 +588,7 @@ void linkSetup() {
 // MAIN
 // -----------------------------------------------------------------------------
 
-SerialLink link(Serial);
+SerialLink link(Serial, false, 1);
 
 TaskDHT tdht(link, DHT_PIN);
 TaskLight tlight(link, LDR_PIN);
