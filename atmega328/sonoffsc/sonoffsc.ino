@@ -597,6 +597,18 @@ TaskAudio taudio(link, MICROPHONE_PIN);
 TaskRGB trgb(link, RGB_PIN, RGB_COUNT);
 TaskMove tmove(link, MOVE_PIN);
 
+volatile bool goON = false;
+
+bool linkWaitHello(char * key, long value) {
+  Serial.println(key);
+
+    if(strcmp_P(key, at_hello) == 0){
+      goON = true;
+    }
+
+}
+
+
 void setup() {
   // Setup Serial port
   Serial.begin(SERIAL_BAUDRATE);
@@ -613,8 +625,13 @@ void setup() {
 
 #endif
 
-  trgb.start();
+  link.onSet(linkWaitHello);
+  while (!goON) {
+    link.handle();
+  }
   link.send_P(at_hello, 1);
+
+  trgb.start();
 }
 
 extern volatile int adcReady;
