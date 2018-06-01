@@ -271,6 +271,7 @@ void setup() {
 
     sendNotification(true, NOTIFICATION_TIME);
 
+    commsHello();
 }
 
 void loop() {

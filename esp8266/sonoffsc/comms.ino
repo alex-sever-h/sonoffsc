@@ -9,7 +9,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 #include <math.h>
 #include "SerialLink.h"
 
-SerialLink link(Serial, false);
+SerialLink link(Serial, false, 2);
 
 const PROGMEM char at_hello[] = "AT+HELLO";
 const PROGMEM char at_push[] = "AT+PUSH";
@@ -175,14 +175,13 @@ void commsSetup() {
     link.onSet(commsSet);
     link.onSetByteStream(commsSetByteStream);
     link.clear();
-    delay(200);
-
-    // Set FAN mode depending on delay
-    send_P_repeat(at_fanoff, FAN_DELAY);
-    send_P_repeat(at_fan, FAN_DELAY == 0);
-
 }
 
 void commsLoop() {
     link.handle();
+}
+
+void commsHello() {
+  delay(500);
+  send_P_repeat(at_hello, 314);
 }
